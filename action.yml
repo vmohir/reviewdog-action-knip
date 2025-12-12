@@ -1,0 +1,62 @@
+name: 'Run knip with reviewdog'
+description: 'Run knip with reviewdog on pull requests to find unused code.'
+author: 'reviewdog'
+inputs:
+  github_token:
+    description: 'GITHUB_TOKEN.'
+    required: true
+    default: ${{ github.token }}
+  level:
+    description: 'Report level for reviewdog [info,warning,error]'
+    default: 'warning'
+  reporter:
+    description: |
+      Reporter of reviewdog command [github-check,github-pr-review,github-pr-check].
+      Default is github-pr-review.
+    default: 'github-pr-review'
+  filter_mode:
+    description: |
+      Filtering mode for reviewdog [added,diff_context,file,nofilter].
+      Default is added.
+    default: 'added'
+  fail_level:
+    description: |
+      Exit code for reviewdog when issues found [none,any,info,warning,error].
+      Default is none.
+    default: 'none'
+  fail_on_error:
+    description: 'Deprecated, use fail_level instead.'
+    deprecationMessage: 'Deprecated, use fail_level instead.'
+    default: 'false'
+  reviewdog_flags:
+    description: 'Additional reviewdog flags'
+    default: ''
+  knip_flags:
+    description: 'Flags and args for knip command (e.g., --config custom.json --workspace packages/foo)'
+    default: ''
+  workdir:
+    description: 'Working directory. Default: .'
+    default: '.'
+  tool_name:
+    description: 'Tool name for reviewdog reporter'
+    default: 'knip'
+runs:
+  using: 'composite'
+  steps:
+    - run: $GITHUB_ACTION_PATH/script.sh
+      shell: bash
+      env:
+        REVIEWDOG_VERSION: v0.21.0
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_LEVEL: ${{ inputs.level }}
+        INPUT_REPORTER: ${{ inputs.reporter }}
+        INPUT_FILTER_MODE: ${{ inputs.filter_mode }}
+        INPUT_FAIL_LEVEL: ${{ inputs.fail_level }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
+        INPUT_REVIEWDOG_FLAGS: ${{ inputs.reviewdog_flags }}
+        INPUT_KNIP_FLAGS: ${{ inputs.knip_flags }}
+        INPUT_WORKDIR: ${{ inputs.workdir }}
+        INPUT_TOOL_NAME: ${{ inputs.tool_name }}
+branding:
+  icon: 'scissors'
+  color: 'purple'

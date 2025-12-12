@@ -1,0 +1,7 @@
+{
+  "name": "reviewdog-action-knip",
+  "private": true,
+  "devDependencies": {
+    "knip": "^5.0.0"
+  }
+}
