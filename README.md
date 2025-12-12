@@ -60,15 +60,17 @@ Examples:
 
 Optional. The directory from which to look for and run knip. Default '.'.
 
-## Example usage
+## Prerequisites
 
-You also need to install [knip](https://github.com/webpro-nl/knip).
+You **must** have [knip](https://github.com/webpro-nl/knip) installed in your project's `package.json`:
 
 ```shell
 npm install knip -D
 ```
 
 You can create a [knip config](https://knip.dev/overview/configuration) and this action uses that config too.
+
+## Example usage
 
 ### Basic Usage
 
