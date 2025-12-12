@@ -15,7 +15,7 @@ echo '::group::Installing reviewdog ... https://github.com/reviewdog/reviewdog'
 curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b "${TEMP_PATH}" "${REVIEWDOG_VERSION}" 2>&1
 echo '::endgroup::'
 
-./node_modules/.bin/knip --version
+./node_modules/.bin/knip --version > /dev/null 2>&1
 if [ $? -ne 0 ]; then
   echo '::group:: Running npm install to install knip ...'
   set -e
@@ -27,17 +27,28 @@ fi
 echo "knip version: $(./node_modules/.bin/knip --version)"
 
 echo '::group:: Running knip with reviewdog ...'
-./node_modules/.bin/knip --reporter "./${KNIP_REPORTER_LOCAL}/index.js" ${INPUT_KNIP_FLAGS} \
-  | reviewdog -f=rdjson \
-      -name="${INPUT_TOOL_NAME}" \
-      -reporter="${INPUT_REPORTER:-github-pr-review}" \
-      -filter-mode="${INPUT_FILTER_MODE}" \
-      -fail-level="${INPUT_FAIL_LEVEL}" \
-      -fail-on-error="${INPUT_FAIL_ON_ERROR}" \
-      -level="${INPUT_LEVEL}" \
-      ${INPUT_REVIEWDOG_FLAGS}
+
+# Capture knip stdout (JSON) to file, stderr goes to console
+KNIP_OUTPUT=$(mktemp)
+./node_modules/.bin/knip --reporter "./${KNIP_REPORTER_LOCAL}/index.js" ${INPUT_KNIP_FLAGS} > "${KNIP_OUTPUT}"
+knip_exit=$?
+
+# If output is empty, create minimal valid JSON
+if [ ! -s "${KNIP_OUTPUT}" ]; then
+  echo '{"source":{"name":"knip","url":"https://knip.dev/"},"diagnostics":[]}' > "${KNIP_OUTPUT}"
+fi
+
+cat "${KNIP_OUTPUT}" | reviewdog -f=rdjson \
+    -name="${INPUT_TOOL_NAME}" \
+    -reporter="${INPUT_REPORTER:-github-pr-review}" \
+    -filter-mode="${INPUT_FILTER_MODE}" \
+    -fail-level="${INPUT_FAIL_LEVEL}" \
+    -fail-on-error="${INPUT_FAIL_ON_ERROR}" \
+    -level="${INPUT_LEVEL}" \
+    ${INPUT_REVIEWDOG_FLAGS}
 
 reviewdog_rc=$?
+rm -f "${KNIP_OUTPUT}"
 rm -rf "${KNIP_REPORTER_LOCAL}"
 echo '::endgroup::'
 exit $reviewdog_rc
