@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd "${GITHUB_WORKSPACE}/${INPUT_WORKDIR}" || exit 1
 
@@ -11,17 +11,20 @@ echo '::group::Installing reviewdog ... https://github.com/reviewdog/reviewdog'
 curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b "${TEMP_PATH}" "${REVIEWDOG_VERSION}" 2>&1
 echo '::endgroup::'
 
-npx --no-install -c 'knip --version'
-if [ $? -ne 0 ]; then
+# Check if knip is installed
+if ! npx knip --version > /dev/null 2>&1; then
   echo '::group:: Running npm install to install knip ...'
   npm install
   echo '::endgroup::'
 fi
 
-echo "knip version: $(npx --no-install -c 'knip --version')"
+echo "knip version: $(npx knip --version 2>/dev/null || echo 'unknown')"
 
 echo '::group:: Running knip with reviewdog ...'
-knip_output=$(npx --no-install -c "knip --reporter ${KNIP_REPORTER} ${INPUT_KNIP_FLAGS}" 2>&1)
+
+# Run knip and capture output
+# Use -- to separate npx flags from knip flags
+knip_output=$(npx knip --reporter "${KNIP_REPORTER}" ${INPUT_KNIP_FLAGS} 2>&1)
 knip_rc=$?
 
 # knip exits with 1 when issues found, 0 when no issues
