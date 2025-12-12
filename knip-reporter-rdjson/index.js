@@ -1,7 +1,7 @@
 // Knip Reporter to Output Reviewdog Diagnostic Format (RDFormat)
 // https://github.com/reviewdog/reviewdog/tree/master/proto/rdf
 
-const ISSUE_TYPE_CONFIG = {
+const ISSUE_TYPES = {
   files: { message: 'Unused file', severity: 'WARNING' },
   dependencies: { message: 'Unused dependency', severity: 'WARNING' },
   devDependencies: { message: 'Unused devDependency', severity: 'WARNING' },
@@ -18,57 +18,65 @@ const ISSUE_TYPE_CONFIG = {
   duplicates: { message: 'Duplicate export', severity: 'WARNING' },
 };
 
-export default async function reporter({ issues, cwd }) {
-  const rdjson = {
-    source: {
-      name: 'knip',
-      url: 'https://knip.dev/'
-    },
-    diagnostics: []
-  };
+const getRelativePath = (filePath, absolutePath, cwd) =>
+  absolutePath?.startsWith(cwd) ? absolutePath.slice(cwd.length + 1) : filePath;
 
-  // Knip v5+ stores all issues in _files grouped by file path
-  const filesWithIssues = issues._files || {};
-
-  for (const [filePath, fileIssues] of Object.entries(filesWithIssues)) {
-    for (const issue of fileIssues) {
-      const issueType = issue.type;
-      const config = ISSUE_TYPE_CONFIG[issueType];
-
-      if (!config) continue;
-
-      const symbol = issue.symbol || '';
-      const message = symbol
-        ? `${config.message}: ${symbol}`
-        : config.message;
-
-      // Convert absolute path to relative path for reviewdog
-      let relativePath = filePath;
-      if (issue.filePath && cwd && issue.filePath.startsWith(cwd)) {
-        relativePath = issue.filePath.slice(cwd.length + 1);
-      }
-
-      const diagnostic = {
-        message,
-        location: {
-          path: relativePath,
-          range: {
-            start: {
-              line: issue.line || 1,
-              column: (issue.col || 0) + 1
-            }
-          }
-        },
-        severity: config.severity,
-        code: {
-          value: issueType,
-          url: `https://knip.dev/reference/issue-types#${issueType.toLowerCase()}`
-        }
-      };
-
-      rdjson.diagnostics.push(diagnostic);
+const createDiagnostic = ({ message, path, line = 1, col = 0, issueType }) => ({
+  message,
+  location: {
+    path,
+    range: {
+      start: { line, column: col + 1 }
     }
+  },
+  severity: ISSUE_TYPES[issueType]?.severity ?? 'WARNING',
+  code: {
+    value: issueType,
+    url: `https://knip.dev/reference/issue-types#${issueType.toLowerCase()}`
   }
+});
+
+const formatMessage = (baseMessage, symbol) =>
+  symbol ? `${baseMessage}: ${symbol}` : baseMessage;
+
+export default async function reporter({ issues, cwd }) {
+  const diagnostics = [];
+
+  // Process _files (knip v5+ consolidated view)
+  const filesIssues = Object.entries(issues._files ?? {}).flatMap(([filePath, fileIssues]) =>
+    fileIssues
+      .filter(issue => ISSUE_TYPES[issue.type])
+      .map(issue => createDiagnostic({
+        message: formatMessage(ISSUE_TYPES[issue.type].message, issue.symbol),
+        path: getRelativePath(filePath, issue.filePath, cwd),
+        line: issue.line,
+        col: issue.col,
+        issueType: issue.type
+      }))
+  );
+
+  // Process individual issue type objects
+  // Structure: issues[type][filePath][symbolName] = [{ line, col, pos }]
+  const typeIssues = Object.entries(ISSUE_TYPES).flatMap(([issueType, config]) =>
+    Object.entries(issues[issueType] ?? {}).flatMap(([filePath, symbols]) =>
+      Object.entries(symbols ?? {}).flatMap(([symbolName, locations]) =>
+        [locations].flat().filter(Boolean).map(loc => createDiagnostic({
+          message: formatMessage(config.message, symbolName),
+          path: filePath,
+          line: loc?.line,
+          col: loc?.col,
+          issueType
+        }))
+      )
+    )
+  );
+
+  diagnostics.push(...filesIssues, ...typeIssues);
+
+  const rdjson = {
+    source: { name: 'knip', url: 'https://knip.dev/' },
+    diagnostics
+  };
 
   console.log(JSON.stringify(rdjson));
 }
