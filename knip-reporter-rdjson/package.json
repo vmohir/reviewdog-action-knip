@@ -1,6 +1,30 @@
 {
   "name": "knip-reporter-rdjson",
   "version": "1.0.0",
+  "description": "Knip reporter that outputs Reviewdog Diagnostic JSON format (rdjson)",
   "main": "index.js",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "knip",
+    "reporter",
+    "reviewdog",
+    "rdjson",
+    "lint",
+    "unused",
+    "exports",
+    "dependencies"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "knip": ">=4.0.0"
+  }
 }
